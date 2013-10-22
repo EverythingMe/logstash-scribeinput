@@ -14,16 +14,18 @@ import org.apache.thrift.transport.TServerSocket;
 import org.apache.thrift.transport.TServerTransport;
 import org.apache.thrift.transport.TTransportException;
 import scribe.thrift.Scribe;
+import java.net.InetSocketAddress;
+
 /**
  *
  * @author smackware
  */
 public class Util {
-
     public static void serveWithHandler(String host, int port, Scribe.Iface handler) throws TTransportException {
         System.out.println("Setting up...");
+        InetSocketAddress bindAddr = new InetSocketAddress(host, port);
         scribe.thrift.Scribe.Processor processor = new scribe.thrift.Scribe.Processor(handler);
-        TServerTransport transport = new TServerSocket(port);
+        TServerTransport transport = new TServerSocket(bindAddr);
         TThreadPoolServer.Args serverArgs = new TThreadPoolServer.Args(transport);
         serverArgs.processor(processor);
         serverArgs.transportFactory(new TFramedTransport.Factory());
@@ -31,6 +33,5 @@ public class Util {
         TServer server = new TThreadPoolServer(serverArgs);
         System.out.println("Serving...");
         server.serve();
-
     }
 }
