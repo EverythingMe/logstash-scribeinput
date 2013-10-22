@@ -22,13 +22,17 @@ class LogStash::Inputs::Scribe < LogStash::Inputs::Base
     end
 
     # Example for implementing "Log" directly
+    # For some reason - the client does not accept the ResultCode.OK I return here
+    # which is why I'm implementing "ActionScribeHandler" instead of implementing Log
+    # myself. If anyone knows why this is the case - I'll be happy to know.
+    # ---------------
     #java_signature 'ResultCode Log(List<LogEntry> messages)'
-   # def Log(messages)
+    #def Log(messages)
     #  messages.each do |message|
-     #   event = LogStash::Event.new({"message" => message.getMessage(), "category" => message.getCategory()})
-      #  @output_queue << event
-      #end
-      #return ResultCode.OK
+    #    event = LogStash::Event.new({"message" => message.getMessage(), "category" => message.getCategory()})
+    #    @output_queue << event
+    #  end
+    #  return ResultCode.OK
     #end
   end
 
