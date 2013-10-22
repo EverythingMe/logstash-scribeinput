@@ -15,7 +15,7 @@ public class App
         System.out.println( "Setting up..." );
         StdoutScribeHandler handler = new StdoutScribeHandler();
         try {
-            Util.serveWithHandler("localhost", 7777, handler);
+            Util.getServer("localhost", 7777, handler).serve();
         } catch (TTransportException ex) {
             System.out.println("ERROR!: " + ex.toString());
             Logger.getLogger(App.class.getName()).log(Level.SEVERE, null, ex);

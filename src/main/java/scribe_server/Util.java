@@ -21,7 +21,7 @@ import java.net.InetSocketAddress;
  * @author smackware
  */
 public class Util {
-    public static void serveWithHandler(String host, int port, Scribe.Iface handler) throws TTransportException {
+    public static TServer getServer(String host, int port, Scribe.Iface handler) throws TTransportException {
         System.out.println("Setting up...");
         InetSocketAddress bindAddr = new InetSocketAddress(host, port);
         scribe.thrift.Scribe.Processor processor = new scribe.thrift.Scribe.Processor(handler);
@@ -30,8 +30,6 @@ public class Util {
         serverArgs.processor(processor);
         serverArgs.transportFactory(new TFramedTransport.Factory());
         serverArgs.protocolFactory(new TBinaryProtocol.Factory(true, true));
-        TServer server = new TThreadPoolServer(serverArgs);
-        System.out.println("Serving...");
-        server.serve();
+        return new TThreadPoolServer(serverArgs);
     }
 }

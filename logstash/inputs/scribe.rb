@@ -58,6 +58,12 @@ class LogStash::Inputs::Scribe < LogStash::Inputs::Base
     handler = ScribeHandler.new()
     handler.setQueue(output_queue)
     @logger.info("Start of run for thrift plugin")
-    Util.serveWithHandler(@host, @port, handler)
+    @tServer = Util.getServer(@host, @port, handler)
+    @tServer.serve()
   end
+
+  public
+  def teardown
+    @tServer.stop()
+  end # def teardown
 end 
