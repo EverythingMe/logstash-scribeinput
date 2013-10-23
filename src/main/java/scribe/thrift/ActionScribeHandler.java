@@ -22,14 +22,27 @@ public class ActionScribeHandler implements Scribe.Iface {
         throw new UnsupportedOperationException();
     }
     
-    public ResultCode Log(List<LogEntry> messages) throws TException {
-        try {
-            for (LogEntry message : messages) {
-                this.action(message);
-            }
-        } catch (Exception e) {
-            return ResultCode.TRY_LATER;
+    public class ProcessThread implements Runnable {
+        private List<LogEntry> messages;
+        private ActionScribeHandler handler;
+        public ProcessThread(List<LogEntry> messages, ActionScribeHandler handler) {
+            this.messages = messages;       
+            this.handler = handler;
         }
+        public void run() {
+            //System.out.println("Processing: " + messages.size() + " messages");
+            for (LogEntry message : messages) {
+                this.handler.action(message);
+            }            
+        }
+        
+    }
+    
+    public ResultCode Log(List<LogEntry> messages) throws TException {        
+        //System.out.println("Got: " + messages.size() + " messages");
+        ProcessThread processThread = new ProcessThread(messages, this);
+        Thread thread = new Thread(processThread);
+        thread.start();
         return ResultCode.OK;
     }
 
