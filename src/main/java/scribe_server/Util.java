@@ -29,7 +29,7 @@ public class Util {
         TThreadPoolServer.Args serverArgs = new TThreadPoolServer.Args(transport);
         serverArgs.processor(processor);
         serverArgs.transportFactory(new TFramedTransport.Factory());
-        serverArgs.protocolFactory(new TBinaryProtocol.Factory(true, true));
+        serverArgs.protocolFactory(new TBinaryProtocol.Factory(false, false));
         return new TThreadPoolServer(serverArgs);
     }
 }

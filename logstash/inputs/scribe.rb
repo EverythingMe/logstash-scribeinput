@@ -59,11 +59,16 @@ class LogStash::Inputs::Scribe < LogStash::Inputs::Base
     handler.setQueue(output_queue)
     @logger.info("Start of run for thrift plugin")
     @tServer = Util.getServer(@host, @port, handler)
-    @tServer.serve()
+    @thread = Thread.current
+    @server_thread = Thread.start(@tServer.serve)
+    while @tServer.isServing() do
+    end
   end
 
   public
   def teardown
+    @interrupted = true
+    @thread.raise(LogStash::ShutdownSignal)
     @tServer.stop()
   end # def teardown
 end 
