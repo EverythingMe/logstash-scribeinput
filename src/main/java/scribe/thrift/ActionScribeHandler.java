@@ -6,8 +6,27 @@
 package scribe.thrift;
 
 import com.facebook.fb303.fb_status;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
+import java.util.Set;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.RejectedExecutionHandler;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import org.apache.thrift.TException;
 
 /**
@@ -17,33 +36,58 @@ import org.apache.thrift.TException;
  * @author smackware
  */
 public class ActionScribeHandler implements Scribe.Iface {
-
-    public void action(LogEntry logEntry) {
+    /*private BlockingQueue<Runnable> linkedBlockingQueue = new LinkedBlockingQueue<Runnable>(4);
+    private final ExecutorService executorService = new ThreadPoolExecutor(1, 10, 30, TimeUnit.SECONDS, linkedBlockingQueue, new ThreadPoolExecutor.AbortPolicy());
+    private Processor processor= null;*/
+    
+    
+    public void action(List<LogEntry> messages) {
         throw new UnsupportedOperationException();
     }
-    
-    public class ProcessThread implements Runnable {
-        private List<LogEntry> messages;
+            
+    public class Processor implements Runnable {
+        protected List<LogEntry> messages;
         private ActionScribeHandler handler;
-        public ProcessThread(List<LogEntry> messages, ActionScribeHandler handler) {
+        private boolean run = true;
+        public Processor(List<LogEntry> messages, ActionScribeHandler handler) {
             this.messages = messages;       
             this.handler = handler;
         }
-        public void run() {
-            //System.out.println("Processing: " + messages.size() + " messages");
-            for (LogEntry message : messages) {
-                this.handler.action(message);
-            }            
-        }
-        
+        public void run() {                  
+            this.handler.action(this.messages);
+        }        
+    }
+    
+    public boolean canQueue() {
+        throw new UnsupportedOperationException();
     }
     
     public ResultCode Log(List<LogEntry> messages) throws TException {        
-        //System.out.println("Got: " + messages.size() + " messages");
-        ProcessThread processThread = new ProcessThread(messages, this);
-        Thread thread = new Thread(processThread);
-        thread.start();
+        if (messages.isEmpty()) {
+            return ResultCode.OK;
+        }
+        long before = System.currentTimeMillis();
+        System.out.println(before + " Processing: " + messages.size());
+        this.action(messages);
+        long delta = System.currentTimeMillis() - before;
+        System.out.println(before + " Done processing: " + messages.size() + ": " + delta +"ms");
         return ResultCode.OK;
+        /*
+        try {        
+            
+            Processor processor = new Processor(messages, this);
+            try {
+                this.executorService.execute(processor);            
+                System.out.println("Processing: " + messages.size());
+            } catch (RejectedExecutionException e) {
+                System.out.println("Too many threads");
+                return ResultCode.TRY_LATER;
+            }
+            return ResultCode.OK;               
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            return ResultCode.TRY_LATER;
+        }*/
     }
 
     public String getName() throws TException {

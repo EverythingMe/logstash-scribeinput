@@ -2,6 +2,7 @@ require 'java'
 require "logstash/inputs/tcp"
 require "logstash/namespace"
 require "logstash/event"
+require "logstash/inputs/threadable"
 include Java
 java_import 'scribe.thrift.ResultCode'
 java_import 'scribe.thrift.Scribe'
@@ -10,16 +11,23 @@ java_import 'scribe.thrift.LogEntry'
 java_import 'scribe.thrift.StdoutScribeHandler'
 java_import 'scribe_server.Util'
 
-class LogStash::Inputs::Scribe < LogStash::Inputs::Base
+class LogStash::Inputs::Scribe < LogStash::Inputs::Threadable
   class ScribeHandler < ActionScribeHandler
     def setQueue(output_queue)
       @output_queue = output_queue
     end
 
-    def action(message)
-        event = LogStash::Event.new({"message" => message.getMessage(), "category" => message.getCategory()})
-        @output_queue << event
+    def action(messages)
+        messages.each do |message|
+            event = LogStash::Event.new({"message" => message.getMessage(), "category" => message.getCategory()})
+            @output_queue << event
+        end
     end
+
+    #def action(message)
+    #    event = LogStash::Event.new({"message" => message.getMessage(), "category" => message.getCategory()})
+    #    @output_queue << event
+    #end
 
     # Example for implementing "Log" directly
     # For some reason - the client does not accept the ResultCode.OK I return here
@@ -60,15 +68,12 @@ class LogStash::Inputs::Scribe < LogStash::Inputs::Base
     @logger.info("Start of run for thrift plugin")
     @tServer = Util.getServer(@host, @port, handler)
     @thread = Thread.current
-    @server_thread = Thread.start(@tServer.serve)
-    while @tServer.isServing() do
-    end
+    @tServer.serve()
   end
 
   public
   def teardown
     @interrupted = true
-    @thread.raise(LogStash::ShutdownSignal)
     @tServer.stop()
   end # def teardown
 end 
