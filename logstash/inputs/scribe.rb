@@ -1,8 +1,7 @@
 require 'java'
-require "logstash/inputs/tcp"
 require "logstash/namespace"
 require "logstash/event"
-require "logstash/inputs/threadable"
+require "logstash/inputs/base"
 include Java
 java_import 'scribe.thrift.ResultCode'
 java_import 'scribe.thrift.Scribe'
@@ -11,7 +10,7 @@ java_import 'scribe.thrift.LogEntry'
 java_import 'scribe.thrift.StdoutScribeHandler'
 java_import 'scribe_server.Util'
 
-class LogStash::Inputs::Scribe < LogStash::Inputs::Threadable
+class LogStash::Inputs::Scribe < LogStash::Inputs::Base
   class ScribeHandler < ActionScribeHandler
     def setQueue(output_queue)
       @output_queue = output_queue
@@ -67,7 +66,6 @@ class LogStash::Inputs::Scribe < LogStash::Inputs::Threadable
     handler.setQueue(output_queue)
     @logger.info("Start of run for thrift plugin")
     @tServer = Util.getServer(@host, @port, handler)
-    @thread = Thread.current
     @tServer.serve()
   end
 
