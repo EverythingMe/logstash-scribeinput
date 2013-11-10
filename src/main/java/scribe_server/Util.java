@@ -4,8 +4,7 @@
  * and open the template in the editor.
  */
 package scribe_server;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+
 import org.apache.thrift.protocol.TBinaryProtocol;
 import org.apache.thrift.server.TServer;
 import org.apache.thrift.server.TThreadPoolServer;
@@ -14,6 +13,7 @@ import org.apache.thrift.transport.TServerSocket;
 import org.apache.thrift.transport.TServerTransport;
 import org.apache.thrift.transport.TTransportException;
 import scribe.thrift.Scribe;
+
 import java.net.InetSocketAddress;
 
 /**
