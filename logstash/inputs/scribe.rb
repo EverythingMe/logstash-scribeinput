@@ -1,4 +1,5 @@
 require 'java'
+require 'base64'
 require "logstash/namespace"
 require "logstash/event"
 require "logstash/inputs/base"
@@ -15,6 +16,8 @@ java_import 'org.apache.thrift.transport.TServerSocket'
 java_import 'org.apache.thrift.transport.TServerTransport'
 java_import 'org.apache.thrift.transport.TTransportException'
 
+ARABIC_NUMBERS = Base64.decode64("2aDZodmi2aPZpNml2abZp9mo2ak=").force_encoding('UTF-8')
+
 class LogStash::Inputs::Scribe < LogStash::Inputs::Base
   class ScribeHandler < ActionScribeHandler
     # due to jruby bug, classes that subclass java classes cannot have constructor with different number of arguments
@@ -23,7 +26,8 @@ class LogStash::Inputs::Scribe < LogStash::Inputs::Base
 
     def action(messages)
         messages.each do |message|
-            event = LogStash::Event.new({"message" => message.getMessage(), "category" => message.getCategory()})
+            text = message.getMessage().tr(ARABIC_NUMBERS,'0123456789').encode('UTF-8', :invalid   => :replace, :undef => :replace)
+            event = LogStash::Event.new({"message" => text, "category" => message.getCategory()})
             # this will block if output_queue is full. output_queue size is 20
             @output_queue << event
         end
