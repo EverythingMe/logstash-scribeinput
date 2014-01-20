@@ -6,28 +6,12 @@
 package scribe.thrift;
 
 import com.facebook.fb303.fb_status;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.HashSet;
-import java.util.Iterator;
+import org.apache.thrift.TException;
+
 import java.util.List;
 import java.util.Map;
-import java.util.Queue;
-import java.util.Set;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.Executor;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.LinkedBlockingDeque;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.RejectedExecutionException;
-import java.util.concurrent.RejectedExecutionHandler;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import org.apache.thrift.TException;
 
 /**
  * A class to extend in ruby. We will simply implement "action"
@@ -36,12 +20,22 @@ import org.apache.thrift.TException;
  * @author smackware
  */
 public class ActionScribeHandler implements Scribe.Iface {
-    
-    public void action(List<LogEntry> messages) {
-        throw new UnsupportedOperationException();
+    int inFlightMsgs;
+    Logger logger = Logger.getLogger(this.getClass().toString());
+    int MAX_IN_FLIGHT_MSGS;
+    fb_status status;
+
+    public ActionScribeHandler(int MAX_IN_FLIGHT_MSGS) {
+        this.MAX_IN_FLIGHT_MSGS = MAX_IN_FLIGHT_MSGS;
+        this.inFlightMsgs = 0;
+        this.status = fb_status.ALIVE;
     }
-    
-    public boolean canQueue() {
+
+    public ActionScribeHandler() {
+        this(10000);
+    }
+
+    public void action(List<LogEntry> messages) {
         throw new UnsupportedOperationException();
     }
     
@@ -49,11 +43,30 @@ public class ActionScribeHandler implements Scribe.Iface {
         if (messages.isEmpty()) {
             return ResultCode.OK;
         }
-        //long before = System.currentTimeMillis();
-        //System.out.println(before + " Processing: " + messages.size());
-        this.action(messages);
-        //long delta = System.currentTimeMillis() - before;
-        //System.out.println(before + " Done processing: " + messages.size() + ": " + delta +"ms");
+
+        // Throttling. we don't care about race conditions, it's quite all right to miss our target
+        if (this.getStatus().equals(fb_status.STOPPING)) {
+            logger.warning("Rejecting messages, server is stopping");
+            return ResultCode.TRY_LATER;
+        }
+
+        if (inFlightMsgs > MAX_IN_FLIGHT_MSGS) {
+            logger.log(Level.WARNING, "Throttling, too many messages in flight", inFlightMsgs);
+            return ResultCode.TRY_LATER;
+        }
+        long before = System.currentTimeMillis();
+        logger.info(before + " Processing: " + messages.size());
+        this.inFlightMsgs += messages.size();
+        try {
+            this.action(messages);
+        } catch (Exception e) {
+            logger.log(Level.SEVERE, "Caught exception in messages handler", e);
+            return ResultCode.TRY_LATER;
+        } finally {
+            this.inFlightMsgs -= messages.size();
+        }
+        long delta = System.currentTimeMillis() - before;
+        logger.info(before + " Done processing: " + messages.size() + ": " + delta + "ms");
         return ResultCode.OK;
     }
 
@@ -66,7 +79,7 @@ public class ActionScribeHandler implements Scribe.Iface {
     }
 
     public fb_status getStatus() throws TException {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        return status;
     }
 
     public String getStatusDetails() throws TException {
@@ -105,8 +118,24 @@ public class ActionScribeHandler implements Scribe.Iface {
         throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
 
+    @Override
     public void shutdown() throws TException {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        throw new UnsupportedOperationException("Not implemented");
+    }
+
+    public void drain() {
+        logger.warning("Stopping handler");
+        status = fb_status.STOPPING;
+        for (int i=0; i < 60; i++) {
+            if (this.inFlightMsgs == 0) {
+                return;
+            }
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+            }
+        }
+        logger.warning("Timed out waiting for all events to be sent");
     }
     
 }

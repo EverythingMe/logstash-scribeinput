@@ -15,6 +15,7 @@ java_import 'org.apache.thrift.transport.TFramedTransport'
 java_import 'org.apache.thrift.transport.TServerSocket'
 java_import 'org.apache.thrift.transport.TServerTransport'
 java_import 'org.apache.thrift.transport.TTransportException'
+java_import 'org.apache.thrift.server.THsHaServer'
 
 ARABIC_NUMBERS = Base64.decode64("2aDZodmi2aPZpNml2abZp9mo2ak=").force_encoding('UTF-8')
 
@@ -60,6 +61,7 @@ class LogStash::Inputs::Scribe < LogStash::Inputs::Base
   config :port, :validate => :number, :required => true
   config :max_threads, :validate => :number, :default => 8
   config :min_threads, :validate => :number, :default => 1
+  config :max_in_flight_messages, :validate => :number, :default => 10000
 
   def initialize(*args)
     super(*args)
@@ -85,14 +87,16 @@ class LogStash::Inputs::Scribe < LogStash::Inputs::Base
   def run(output_queue)
     @logger.info("Running scribe server")
     # due to jruby bug, classes that subclass java classes cannot have constructor with different number of arguments
-    handler = ScribeHandler.new
-    handler.output_queue = output_queue
-    @tServer = getServer(@host, @port, handler)
+    @handler = ScribeHandler.new(@max_in_flight_messages)
+    @handler.output_queue = output_queue
+    @tServer = getServer(@host, @port, @handler)
     @tServer.serve()
   end
 
   def teardown
     @interrupted = true
+    @handler.drain()
     @tServer.stop()
+    finished
   end # def teardown
 end 
