@@ -10,9 +10,8 @@ java_import 'scribe.thrift.LogEntry'
 java_import 'scribe.thrift.StdoutScribeHandler'
 java_import 'org.apache.thrift.protocol.TBinaryProtocol'
 java_import 'org.apache.thrift.server.TServer'
-java_import 'org.apache.thrift.server.TThreadPoolServer'
 java_import 'org.apache.thrift.transport.TFramedTransport'
-java_import 'org.apache.thrift.transport.TServerSocket'
+java_import 'org.apache.thrift.transport.TNonblockingServerSocket'
 java_import 'org.apache.thrift.transport.TServerTransport'
 java_import 'org.apache.thrift.transport.TTransportException'
 java_import 'org.apache.thrift.server.THsHaServer'
@@ -59,8 +58,7 @@ class LogStash::Inputs::Scribe < LogStash::Inputs::Base
 
   config :host, :validate => :string, :default => "0.0.0.0"
   config :port, :validate => :number, :required => true
-  config :max_threads, :validate => :number, :default => 8
-  config :min_threads, :validate => :number, :default => 1
+  config :worker_threads, :validate => :number, :default => 4
   config :max_in_flight_messages, :validate => :number, :default => 10000
 
   def initialize(*args)
@@ -70,13 +68,12 @@ class LogStash::Inputs::Scribe < LogStash::Inputs::Base
   private
   def getServer(host, port, handler)
     bindAddr = java.net.InetSocketAddress.new(host, port)
-    serverArgs = TThreadPoolServer::Args.new(TServerSocket.new(bindAddr))
+    serverArgs = THsHaServer::Args.new(TNonblockingServerSocket.new(bindAddr))
     serverArgs.processor(Scribe::Processor.new(handler))
-    serverArgs.minWorkerThreads([@min_threads, @max_threads].min)
-    serverArgs.maxWorkerThreads(@max_threads)
+    serverArgs.workerThreads(@worker_threads)
     serverArgs.transportFactory(TFramedTransport::Factory.new())
     serverArgs.protocolFactory(TBinaryProtocol::Factory.new(false, false))
-    return TThreadPoolServer.new(serverArgs)
+    return THsHaServer.new(serverArgs)
   end
 
   public
@@ -96,7 +93,10 @@ class LogStash::Inputs::Scribe < LogStash::Inputs::Base
   def teardown
     @interrupted = true
     @handler.drain()
-    @tServer.stop()
+    if @tServer
+      @tServer.stop()
+      @tServer.waitForShutdown()
+    end
     finished
   end # def teardown
 end 
