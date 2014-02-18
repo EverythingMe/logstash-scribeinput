@@ -28,8 +28,8 @@ public class Util {
         TServerTransport transport = new TServerSocket(bindAddr);
         TThreadPoolServer.Args serverArgs = new TThreadPoolServer.Args(transport);
         serverArgs.processor(processor);
-        //serverArgs.minWorkerThreads(5);
-        serverArgs.maxWorkerThreads(8);
+        //serverArgs.minWorkerThreads(8);
+        serverArgs.maxWorkerThreads(32);
         serverArgs.transportFactory(new TFramedTransport.Factory());
         serverArgs.protocolFactory(new TBinaryProtocol.Factory(false, false));
         return new TThreadPoolServer(serverArgs);
